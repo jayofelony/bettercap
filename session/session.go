@@ -16,7 +16,6 @@ import (
 
 	"github.com/jayofelony/bettercap/caplets"
 	"github.com/jayofelony/bettercap/core"
-	"github.com/jayofelony/bettercap/firewall"
 	"github.com/jayofelony/bettercap/network"
 	"github.com/jayofelony/bettercap/packets"
 
@@ -88,7 +87,6 @@ type Session struct {
 	Events           *EventPool
 	EventsIgnoreList *EventsIgnoreList
 	UnkCmdCallback   UnknownCommandCallback
-	Firewall         firewall.FirewallManager
 
 	script *Script
 }
@@ -186,8 +184,6 @@ func (s *Session) Close() {
 		}
 	}
 
-	s.Firewall.Restore()
-
 	if *s.Options.EnvFile != "" {
 		envFile, _ := fs.Expand(*s.Options.EnvFile)
 		if err := s.Env.Save(envFile); err != nil {
@@ -265,8 +261,6 @@ func (s *Session) Start() error {
 		// start monitoring for gateway changes
 		go s.routeMon()
 	}
-
-	s.Firewall = firewall.Make(s.Interface)
 
 	s.BLE = network.NewBLE(s.Aliases, func(dev *network.BLEDevice) {
 		s.Events.Add("ble.device.new", dev)
