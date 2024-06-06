@@ -241,10 +241,6 @@ func (mod *RestAPI) Configure() error {
 	router.HandleFunc("/api/events", mod.eventsRoute)
 
 	router.HandleFunc("/api/session", mod.sessionRoute)
-	router.HandleFunc("/api/session/ble", mod.sessionRoute)
-	router.HandleFunc("/api/session/ble/{mac}", mod.sessionRoute)
-	router.HandleFunc("/api/session/hid", mod.sessionRoute)
-	router.HandleFunc("/api/session/hid/{mac}", mod.sessionRoute)
 	router.HandleFunc("/api/session/env", mod.sessionRoute)
 	router.HandleFunc("/api/session/gateway", mod.sessionRoute)
 	router.HandleFunc("/api/session/interface", mod.sessionRoute)
