@@ -382,22 +382,6 @@ func NewWiFiModule(s *session.Session) *WiFiModule {
 		"true",
 		"If true, the fake access point will use WPA2, otherwise it'll result as an open AP."))
 
-	mod.AddHandler(session.NewModuleHandler("wifi.show.wps BSSID",
-		`wifi\.show\.wps ((?:[a-fA-F0-9:]{11,})|all|\*)`,
-		"Show WPS information about a given station (use 'all', '*' or a broadcast BSSID for all).",
-		func(args []string) error {
-			if args[0] == "all" || args[0] == "*" {
-				args[0] = "ff:ff:ff:ff:ff:ff"
-			}
-			return mod.ShowWPS(args[0])
-		}))
-
-	mod.AddHandler(session.NewModuleHandler("wifi.show", "",
-		"Show current wireless stations list (default sorting by essid).",
-		func(args []string) error {
-			return mod.Show()
-		}))
-
 	mod.AddParam(session.NewBoolParameter("wifi.show.manufacturer",
 		"false",
 		"If true, wifi.show will also show the devices manufacturers."))

@@ -3,8 +3,6 @@ package wifi
 import (
 	"fmt"
 	"github.com/jayofelony/bettercap/network"
-	"github.com/jayofelony/bettercap/session"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -144,86 +142,6 @@ func (mod *WiFiModule) getRow(station *network.Station) ([]string, bool) {
 	}
 }
 
-func (mod *WiFiModule) doFilter(station *network.Station) bool {
-	if mod.selector.Expression == nil {
-		return true
-	}
-	return mod.selector.Expression.MatchString(station.BSSID()) ||
-		mod.selector.Expression.MatchString(station.ESSID()) ||
-		mod.selector.Expression.MatchString(station.Alias) ||
-		mod.selector.Expression.MatchString(station.Vendor) ||
-		mod.selector.Expression.MatchString(station.Encryption)
-}
-
-func (mod *WiFiModule) doSelection() (err error, stations []*network.Station) {
-	if err = mod.selector.Update(); err != nil {
-		return
-	}
-
-	apSelected := mod.isApSelected()
-	if apSelected {
-		if ap, found := mod.Session.WiFi.Get(mod.ap.HwAddress); found {
-			stations = ap.Clients()
-		} else {
-			err = fmt.Errorf("Could not find station %s", mod.ap.HwAddress)
-			return
-		}
-	} else {
-		stations = mod.Session.WiFi.Stations()
-	}
-
-	filtered := []*network.Station{}
-	for _, station := range stations {
-		if mod.doFilter(station) {
-			filtered = append(filtered, station)
-		}
-	}
-	stations = filtered
-
-	switch mod.selector.SortField {
-	case "seen":
-		sort.Sort(ByWiFiSeenSorter(stations))
-	case "essid":
-		sort.Sort(ByEssidSorter(stations))
-	case "bssid":
-		sort.Sort(ByBssidSorter(stations))
-	case "channel":
-		sort.Sort(ByChannelSorter(stations))
-	case "clients":
-		sort.Sort(ByClientsSorter(stations))
-	case "encryption":
-		sort.Sort(ByEncryptionSorter(stations))
-	case "sent":
-		sort.Sort(ByWiFiSentSorter(stations))
-	case "rcvd":
-		sort.Sort(ByWiFiRcvdSorter(stations))
-	case "rssi":
-		sort.Sort(ByRSSISorter(stations))
-	default:
-		sort.Sort(ByRSSISorter(stations))
-	}
-
-	// default is asc
-	if mod.selector.Sort == "desc" {
-		// from https://github.com/golang/go/wiki/SliceTricks
-		for i := len(stations)/2 - 1; i >= 0; i-- {
-			opp := len(stations) - 1 - i
-			stations[i], stations[opp] = stations[opp], stations[i]
-		}
-	}
-
-	if mod.selector.Limit > 0 {
-		limit := mod.selector.Limit
-		max := len(stations)
-		if limit > max {
-			limit = max
-		}
-		stations = stations[0:limit]
-	}
-
-	return
-}
-
 func (mod *WiFiModule) colDecorate(colNames []string, name string, dir string) {
 	for i, c := range colNames {
 		if c == name {
@@ -231,52 +149,6 @@ func (mod *WiFiModule) colDecorate(colNames []string, name string, dir string) {
 			break
 		}
 	}
-}
-
-func (mod *WiFiModule) colNames(nrows int) []string {
-	columns := []string(nil)
-
-	if !mod.isApSelected() {
-		if mod.showManuf {
-			columns = []string{"RSSI", "BSSID", "Manufacturer", "SSID", "Encryption", "WPS", "Ch", "Clients", "Sent", "Recvd", "Seen"}
-		} else {
-			columns = []string{"RSSI", "BSSID", "SSID", "Encryption", "WPS", "Ch", "Clients", "Sent", "Recvd", "Seen"}
-		}
-	} else if nrows > 0 {
-		if mod.showManuf {
-			columns = []string{"RSSI", "BSSID", "Manufacturer", "Ch", "Sent", "Recvd", "Seen"}
-		} else {
-			columns = []string{"RSSI", "BSSID", "Ch", "Sent", "Recvd", "Seen"}
-		}
-		mod.Printf("\n%s clients:\n", mod.ap.HwAddress)
-	} else {
-		mod.Printf("\nNo authenticated clients detected for %s.\n", mod.ap.HwAddress)
-	}
-
-	if columns != nil {
-		switch mod.selector.SortField {
-		case "seen":
-			mod.colDecorate(columns, "Seen", mod.selector.SortSymbol)
-		case "essid":
-			mod.colDecorate(columns, "SSID", mod.selector.SortSymbol)
-		case "bssid":
-			mod.colDecorate(columns, "BSSID", mod.selector.SortSymbol)
-		case "channel":
-			mod.colDecorate(columns, "Ch", mod.selector.SortSymbol)
-		case "clients":
-			mod.colDecorate(columns, "Clients", mod.selector.SortSymbol)
-		case "encryption":
-			mod.colDecorate(columns, "Encryption", mod.selector.SortSymbol)
-		case "sent":
-			mod.colDecorate(columns, "Sent", mod.selector.SortSymbol)
-		case "rcvd":
-			mod.colDecorate(columns, "Recvd", mod.selector.SortSymbol)
-		case "rssi":
-			mod.colDecorate(columns, "RSSI", mod.selector.SortSymbol)
-		}
-	}
-
-	return columns
 }
 
 func (mod *WiFiModule) showStatusBar() {
@@ -296,91 +168,4 @@ func (mod *WiFiModule) showStatusBar() {
 	}
 
 	mod.Printf("\n%s\n\n", strings.Join(parts, " / "))
-}
-
-func (mod *WiFiModule) Show() (err error) {
-	if mod.Running() == false {
-		return session.ErrAlreadyStopped(mod.Name())
-	}
-
-	var stations []*network.Station
-	if err, stations = mod.doSelection(); err != nil {
-		return
-	}
-
-	if err, mod.showManuf = mod.BoolParam("wifi.show.manufacturer"); err != nil {
-		return err
-	}
-
-	rows := make([][]string, 0)
-	for _, s := range stations {
-		if row, include := mod.getRow(s); include {
-			rows = append(rows, row)
-		}
-	}
-	nrows := len(rows)
-	if nrows > 0 {
-		tui.Table(mod.Session.Events.Stdout, mod.colNames(nrows), rows)
-	}
-
-	mod.showStatusBar()
-
-	mod.Session.Refresh()
-
-	return nil
-}
-
-func (mod *WiFiModule) ShowWPS(bssid string) (err error) {
-	if mod.Running() == false {
-		return session.ErrAlreadyStopped(mod.Name())
-	}
-
-	toShow := []*network.Station{}
-	if bssid == network.BroadcastMac {
-		for _, station := range mod.Session.WiFi.List() {
-			if station.HasWPS() {
-				toShow = append(toShow, station.Station)
-			}
-		}
-	} else {
-		if station, found := mod.Session.WiFi.Get(bssid); found {
-			if station.HasWPS() {
-				toShow = append(toShow, station.Station)
-			}
-		}
-	}
-
-	if len(toShow) == 0 {
-		return fmt.Errorf("no WPS enabled access points matched the criteria")
-	}
-
-	sort.Sort(ByBssidSorter(toShow))
-
-	colNames := []string{"Name", "Value"}
-
-	for _, station := range toShow {
-		ssid := ops.Ternary(station.ESSID() == "<hidden>", tui.Dim(station.ESSID()), station.ESSID()).(string)
-
-		rows := [][]string{
-			{tui.Green("essid"), ssid},
-			{tui.Green("bssid"), station.BSSID()},
-		}
-
-		keys := []string{}
-		for name := range station.WPS {
-			keys = append(keys, name)
-		}
-		sort.Strings(keys)
-
-		for _, name := range keys {
-			rows = append(rows, []string{
-				tui.Green(name),
-				tui.Yellow(station.WPS[name]),
-			})
-		}
-
-		tui.Table(mod.Session.Events.Stdout, colNames, rows)
-	}
-
-	return nil
 }
