@@ -5,10 +5,10 @@ import (
 	"github.com/evilsocket/islazy/fs"
 	"github.com/gopacket/gopacket"
 	"github.com/gopacket/gopacket/layers"
-	"github.com/jayofelony/bettercap/pcapgo"
+	"github.com/gopacket/gopacket/pcapgo"
 	"os"
 	"path/filepath"
-	"runtime"
+	_ "runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -228,50 +228,33 @@ func (w *WiFi) SaveHandshakesTo(fileName string, linkType layers.LinkType) error
 			return err
 		}
 	}
-	skipHead := fs.Exists(fileName)
+
+	doHead := !fs.Exists(fileName)
 	fp, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		return err
 	}
 	defer fp.Close()
 
-	// Set default interface name and linkType
+	writer := pcapgo.NewWriter(fp)
 
-	NgIface := pcapgo.NgInterface{
-		Name:                w.iface.Name(),
-		LinkType:            linkType,
-		OS:                  runtime.GOOS,
-		SnapLength:          0, //unlimited
-		TimestampResolution: 9,
-	}
-
-	NgOpts := pcapgo.NgWriterOptions{
-		SectionInfo: pcapgo.NgSectionInfo{
-			Hardware:    runtime.GOARCH,
-			OS:          runtime.GOOS,
-			Application: "bettercap",
-		},
-		SkipHeader: skipHead}
-
-	writer, err := pcapgo.NewNgWriterInterface(fp, NgIface, NgOpts)
-	if err != nil {
-		return err
+	if doHead {
+		if err = writer.WriteFileHeader(65536, linkType); err != nil {
+			return err
+		}
 	}
 
 	w.RLock()
 	defer w.RUnlock()
 
-	defer writer.Flush()
-
 	for _, ap := range w.aps {
 		for _, station := range ap.Clients() {
 			// if half (which includes also complete) or has pmkid
 			if station.Handshake.Any() {
+				err = nil
 				station.Handshake.EachUnsavedPacket(func(pkt gopacket.Packet) {
-					c := pkt.Metadata().CaptureInfo
-					c.InterfaceIndex = 0
 					if err == nil {
-						err = writer.WritePacket(c, pkt.Data())
+						err = writer.WritePacket(pkt.Metadata().CaptureInfo, pkt.Data())
 					}
 				})
 				if err != nil {

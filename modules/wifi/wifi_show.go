@@ -2,14 +2,11 @@ package wifi
 
 import (
 	"fmt"
+	"github.com/jayofelony/bettercap/network"
+	"github.com/jayofelony/bettercap/session"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/jayofelony/bettercap/modules/net_recon"
-	"github.com/jayofelony/bettercap/network"
-	"github.com/jayofelony/bettercap/session"
 
 	"github.com/dustin/go-humanize"
 
@@ -24,23 +21,10 @@ func (mod *WiFiModule) isApSelected() bool {
 func (mod *WiFiModule) getRow(station *network.Station) ([]string, bool) {
 	rssi := network.ColorRSSI(int(station.RSSI))
 	bssid := station.HwAddress
-	sinceStarted := time.Since(mod.Session.StartedAt)
-	sinceFirstSeen := time.Since(station.FirstSeen)
-	if sinceStarted > (net_recon.JustJoinedTimeInterval*2) && sinceFirstSeen <= net_recon.JustJoinedTimeInterval {
-		// if endpoint was first seen in the last 10 seconds
-		bssid = tui.Bold(bssid)
-	}
+	bssid = tui.Bold(bssid)
 
 	seen := station.LastSeen.Format("15:04:05")
-	sinceLastSeen := time.Since(station.LastSeen)
-	if sinceStarted > net_recon.AliveTimeInterval && sinceLastSeen <= net_recon.AliveTimeInterval {
-		// if endpoint seen in the last 10 seconds
-		seen = tui.Bold(seen)
-	} else if sinceLastSeen > net_recon.PresentTimeInterval {
-		// if endpoint not  seen in the last 60 seconds
-		seen = tui.Dim(seen)
-	}
-
+	seen = tui.Bold(seen)
 	ssid := ops.Ternary(station.ESSID() == "<hidden>", tui.Dim(station.ESSID()), station.ESSID()).(string)
 
 	encryption := station.Encryption

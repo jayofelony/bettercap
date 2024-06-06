@@ -9,9 +9,6 @@ import (
 	"github.com/jayofelony/bettercap/network"
 	"github.com/jayofelony/bettercap/session"
 
-	"github.com/jayofelony/bettercap/modules/net_sniff"
-	"github.com/jayofelony/bettercap/modules/syn_scan"
-
 	"github.com/google/go-github/v57/github"
 
 	"github.com/evilsocket/islazy/tui"
@@ -73,26 +70,6 @@ func (mod *EventsStream) viewModuleEvent(output io.Writer, e session.Event) {
 	}
 }
 
-func (mod *EventsStream) viewSnifferEvent(output io.Writer, e session.Event) {
-	if strings.HasPrefix(e.Tag, "net.sniff.http.") {
-		mod.viewHttpEvent(output, e)
-	} else {
-		fmt.Fprintf(output, "[%s] [%s] %s\n",
-			e.Time.Format(mod.timeFormat),
-			tui.Green(e.Tag),
-			e.Data.(net_sniff.SnifferEvent).Message)
-	}
-}
-
-func (mod *EventsStream) viewSynScanEvent(output io.Writer, e session.Event) {
-	se := e.Data.(syn_scan.SynScanEvent)
-	fmt.Fprintf(output, "[%s] [%s] found open port %d for %s\n",
-		e.Time.Format(mod.timeFormat),
-		tui.Green(e.Tag),
-		se.Port,
-		tui.Bold(se.Address))
-}
-
 func (mod *EventsStream) viewUpdateEvent(output io.Writer, e session.Event) {
 	update := e.Data.(*github.RepositoryRelease)
 
@@ -118,16 +95,10 @@ func (mod *EventsStream) Render(output io.Writer, e session.Event) {
 		mod.viewWiFiEvent(output, e)
 	} else if strings.HasPrefix(e.Tag, "ble.") {
 		mod.viewBLEEvent(output, e)
-	} else if strings.HasPrefix(e.Tag, "hid.") {
-		mod.viewHIDEvent(output, e)
 	} else if strings.HasPrefix(e.Tag, "gps.") {
 		mod.viewGPSEvent(output, e)
 	} else if strings.HasPrefix(e.Tag, "mod.") {
 		mod.viewModuleEvent(output, e)
-	} else if strings.HasPrefix(e.Tag, "net.sniff.") {
-		mod.viewSnifferEvent(output, e)
-	} else if e.Tag == "syn.scan" {
-		mod.viewSynScanEvent(output, e)
 	} else if e.Tag == "update.available" {
 		mod.viewUpdateEvent(output, e)
 	} else if e.Tag == "gateway.change" {

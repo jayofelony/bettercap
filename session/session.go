@@ -75,7 +75,6 @@ type Session struct {
 	Lan       *network.LAN
 	WiFi      *network.WiFi
 	BLE       *network.BLE
-	HID       *network.HID
 	Queue     *packets.Queue
 	StartedAt time.Time
 	Active    bool
@@ -268,12 +267,6 @@ func (s *Session) Start() error {
 	}
 
 	s.Firewall = firewall.Make(s.Interface)
-
-	s.HID = network.NewHID(s.Aliases, func(dev *network.HIDDevice) {
-		s.Events.Add("hid.device.new", dev)
-	}, func(dev *network.HIDDevice) {
-		s.Events.Add("hid.device.lost", dev)
-	})
 
 	s.BLE = network.NewBLE(s.Aliases, func(dev *network.BLEDevice) {
 		s.Events.Add("ble.device.new", dev)

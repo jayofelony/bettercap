@@ -51,14 +51,6 @@ func (s *Session) BLECompleter(prefix string) []string {
 	return macs
 }
 
-func (s *Session) HIDCompleter(prefix string) []string {
-	macs := []string{""}
-	s.HID.EachDevice(func(mac string, dev *network.HIDDevice) {
-		addIfMatches(&macs, prefix, mac)
-	})
-	return macs
-}
-
 func (s *Session) EventsCompleter(prefix string) []string {
 	events := []string{""}
 	all := []string{

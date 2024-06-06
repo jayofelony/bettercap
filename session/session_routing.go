@@ -1,9 +1,9 @@
 package session
 
 import (
+	"github.com/evilsocket/islazy/log"
 	"github.com/jayofelony/bettercap/network"
 	"github.com/jayofelony/bettercap/routing"
-	"github.com/evilsocket/islazy/log"
 	"time"
 )
 

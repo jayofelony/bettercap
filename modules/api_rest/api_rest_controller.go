@@ -141,19 +141,6 @@ func (mod *RestAPI) showBLE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (mod *RestAPI) showHID(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	mac := strings.ToLower(params["mac"])
-
-	if mac == "" {
-		mod.toJSON(w, mod.Session.HID)
-	} else if dev, found := mod.Session.HID.Get(mac); found {
-		mod.toJSON(w, dev)
-	} else {
-		http.Error(w, "Not Found", 404)
-	}
-}
-
 func (mod *RestAPI) showEnv(w http.ResponseWriter, r *http.Request) {
 	mod.toJSON(w, mod.Session.Env)
 }
@@ -351,9 +338,6 @@ func (mod *RestAPI) sessionRoute(w http.ResponseWriter, r *http.Request) {
 
 	case strings.HasPrefix(path, "/api/session/ble"):
 		mod.showBLE(w, r)
-
-	case strings.HasPrefix(path, "/api/session/hid"):
-		mod.showHID(w, r)
 
 	case strings.HasPrefix(path, "/api/session/wifi"):
 		mod.showWiFi(w, r)

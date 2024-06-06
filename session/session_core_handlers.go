@@ -302,10 +302,6 @@ func (s *Session) propagateAlias(mac, alias string) {
 		dev.Alias = alias
 	}
 
-	if dev, found := s.HID.Get(mac); found {
-		dev.Alias = alias
-	}
-
 	if ap, found := s.WiFi.Get(mac); found {
 		ap.Alias = alias
 	}

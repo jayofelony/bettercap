@@ -58,7 +58,6 @@ type SessionJSON struct {
 	Lan        *network.LAN      `json:"lan"`
 	WiFi       *network.WiFi     `json:"wifi"`
 	BLE        *network.BLE      `json:"ble"`
-	HID        *network.HID      `json:"hid"`
 	Queue      *packets.Queue    `json:"packets"`
 	StartedAt  time.Time         `json:"started_at"`
 	PolledAt   time.Time         `json:"polled_at"`
@@ -94,7 +93,6 @@ func (s *Session) MarshalJSON() ([]byte, error) {
 		Lan:        s.Lan,
 		WiFi:       s.WiFi,
 		BLE:        s.BLE,
-		HID:        s.HID,
 		Queue:      s.Queue,
 		StartedAt:  s.StartedAt,
 		PolledAt:   time.Now(),

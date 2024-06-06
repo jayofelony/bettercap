@@ -129,7 +129,7 @@ func (mod *MySQLServer) Start() error {
 				// parse client capabilities and validate connection
 				// TODO: parse mysql connections properly and
 				//       display additional connection attributes
-				capabilities := fmt.Sprintf("%08b", (int(uint32(readBuffer[4]) | uint32(readBuffer[5])<<8)))
+				capabilities := fmt.Sprintf("%08b", int(uint32(readBuffer[4])|uint32(readBuffer[5])<<8))
 				loadData := string(capabilities[8])
 				username := string(bytes.Split(readBuffer[36:], []byte{0})[0])
 

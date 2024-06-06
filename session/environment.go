@@ -122,7 +122,7 @@ func (env *Environment) GetInt(name string) (error, int) {
 		}
 	}
 
-	return fmt.Errorf("Not found."), 0
+	return fmt.Errorf("not found"), 0
 }
 
 func (env *Environment) Sorted() []string {
