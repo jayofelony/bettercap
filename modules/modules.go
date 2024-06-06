@@ -5,6 +5,8 @@ import (
 	"github.com/jayofelony/bettercap/modules/caplets"
 	"github.com/jayofelony/bettercap/modules/events_stream"
 	"github.com/jayofelony/bettercap/modules/gps"
+	"github.com/jayofelony/bettercap/modules/http_server"
+	"github.com/jayofelony/bettercap/modules/https_server"
 	"github.com/jayofelony/bettercap/modules/mysql_server"
 	"github.com/jayofelony/bettercap/modules/wifi"
 
@@ -15,6 +17,8 @@ func LoadModules(sess *session.Session) {
 	sess.Register(api_rest.NewRestAPI(sess))
 	sess.Register(events_stream.NewEventsStream(sess))
 	sess.Register(gps.NewGPS(sess))
+	sess.Register(http_server.NewHttpServer(sess))
+	sess.Register(https_server.NewHttpsServer(sess))
 	sess.Register(mysql_server.NewMySQLServer(sess))
 	sess.Register(wifi.NewWiFiModule(sess))
 	sess.Register(caplets.NewCapletsModule(sess))
