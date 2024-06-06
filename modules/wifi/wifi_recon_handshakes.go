@@ -99,7 +99,7 @@ func (mod *WiFiModule) discoverHandshakes(radiotap *layers.RadioTap, dot11 *laye
 		numUnsaved := station.Handshake.NumUnsaved()
 		shakesFileName := mod.shakesFile
 		if mod.shakesAggregate == false {
-			shakesFileName = path.Join(shakesFileName, fmt.Sprintf("%s.pcapng", ap.PathFriendlyName()))
+			shakesFileName = path.Join(shakesFileName, fmt.Sprintf("%s.pcap", ap.PathFriendlyName()))
 		}
 		doSave := numUnsaved > 0
 		if doSave && shakesFileName != "" {
