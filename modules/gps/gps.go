@@ -206,12 +206,10 @@ func (mod *GPS) Stop() error {
 		if mod.serial != nil {
 			// let the read fail and exit
 			mod.serial.Close()
-		} /*
-			FIXME: no Close or Stop method in github.com/stratoberry/go-gpsd
-			else {
-				if err := mod.gpsd.Close(); err != nil {
-					mod.Error("failed closing the connection to GPSD: %s", err)
-				}
-			} */
+		} else {
+			if err := mod.gpsd.Close(); err != nil {
+				mod.Error("failed closing the connection to GPSD: %s", err)
+			}
+		}
 	})
 }
