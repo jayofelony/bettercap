@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jayofelony/bettercap/modules/utils"
 	"github.com/jayofelony/bettercap/network"
 	"github.com/jayofelony/bettercap/packets"
 	"github.com/jayofelony/bettercap/session"
@@ -65,7 +64,6 @@ type WiFiModule struct {
 	writes              *sync.WaitGroup
 	reads               *sync.WaitGroup
 	chanLock            *sync.Mutex
-	selector            *utils.ViewSelector
 }
 
 func NewWiFiModule(s *session.Session) *WiFiModule {
@@ -399,9 +397,6 @@ func NewWiFiModule(s *session.Session) *WiFiModule {
 		func(args []string) error {
 			return mod.Show()
 		}))
-
-	mod.selector = utils.ViewSelectorFor(&mod.SessionModule, "wifi.show",
-		[]string{"rssi", "bssid", "essid", "channel", "encryption", "clients", "seen", "sent", "rcvd"}, "rssi asc")
 
 	mod.AddParam(session.NewBoolParameter("wifi.show.manufacturer",
 		"false",
