@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/adrianmo/go-nmea v1.8.0
-	github.com/antchfx/jsonquery v1.3.4
+	github.com/antchfx/jsonquery v1.3.5
 	github.com/bettercap/gatt v0.0.0-20210514133428-df6e615f2f67
 	github.com/bettercap/readline v0.0.0-20210228151553-655e48bcb7bf
 	github.com/bettercap/recording v0.0.0-20190408083647-3ce1dcf032e3
@@ -13,7 +13,7 @@ require (
 	github.com/google/go-github/v57 v57.0.0
 	github.com/gopacket/gopacket v1.2.0
 	github.com/gorilla/mux v1.8.1
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/malfunkt/iprange v0.9.0
 	github.com/mdlayher/dhcp6 v0.0.0-20190311162359-2a67805d7d0b
 	github.com/mitchellh/go-homedir v1.1.0
@@ -23,7 +23,7 @@ require (
 )
 
 require (
-	github.com/antchfx/xpath v1.3.0 // indirect
+	github.com/antchfx/xpath v1.3.1 // indirect
 	github.com/chzyer/logex v1.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
