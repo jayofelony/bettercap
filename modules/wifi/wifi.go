@@ -134,7 +134,7 @@ func NewWiFiModule(s *session.Session) *WiFiModule {
 				mod.stickChan = ap.Channel
 				return nil
 			}
-			return fmt.Errorf("Could not find station with BSSID %s", args[0])
+			return fmt.Errorf("could not find station with BSSID %s", args[0])
 		}))
 
 	mod.AddHandler(session.NewModuleHandler("wifi.recon clear", "",
@@ -398,7 +398,7 @@ func NewWiFiModule(s *session.Session) *WiFiModule {
 						return err
 					} else {
 						if f := network.Dot11Chan2Freq(ch); f == 0 {
-							return fmt.Errorf("%d is not a valid wifi channel.", ch)
+							return fmt.Errorf("%d is not a valid wifi channel", ch)
 						} else {
 							freqs = append(freqs, f)
 						}
@@ -454,7 +454,7 @@ func (mod WiFiModule) Author() string {
 }
 
 const (
-	// Ugly, but gopacket folks are not exporting pcap errors, so ...
+	// ErrIfaceNotUp Ugly, but gopacket folks are not exporting pcap errors, so ...
 	// ref. https://github.com/gopacket/gopacket/blob/96986c90e3e5c7e01deed713ff8058e357c0c047/pcap/pcap.go#L281
 	ErrIfaceNotUp = "Interface Not Up"
 )
@@ -646,7 +646,7 @@ func (mod *WiFiModule) Start() error {
 		return err
 	}
 
-	mod.SetRunning(true, func() {
+	err := mod.SetRunning(true, func() {
 		// start channel hopper if needed
 		if mod.channel == 0 && mod.source == "" {
 			go mod.channelHopper()
@@ -691,6 +691,9 @@ func (mod *WiFiModule) Start() error {
 
 		mod.pktSourceChanClosed = true
 	})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

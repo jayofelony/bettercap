@@ -3,7 +3,7 @@ module github.com/jayofelony/bettercap
 go 1.18
 
 require (
-	github.com/adrianmo/go-nmea v1.8.0
+	github.com/adrianmo/go-nmea v1.9.0
 	github.com/antchfx/jsonquery v1.3.5
 	github.com/bettercap/gatt v0.0.0-20210514133428-df6e615f2f67
 	github.com/bettercap/readline v0.0.0-20210228151553-655e48bcb7bf
@@ -33,8 +33,8 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/mgutz/logxi v0.0.0-20161027140823-aebf8a7d67ab // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	golang.org/x/net v0.26.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/net v0.27.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 )
