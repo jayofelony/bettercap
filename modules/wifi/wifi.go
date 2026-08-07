@@ -784,7 +784,12 @@ func (mod *WiFiModule) forcedStop() error {
 			mod.pktSourceChan <- nil
 		}
 		// close the pcap handle to make the main for exit
-		mod.handle.Close()
+		// (handle can be nil if Stop races with a concurrent Configure/Start,
+		// e.g. a rapid "wifi.recon off; wifi.recon on" triggered right after
+		// a channel-hop error - see fix_services.py's on_bcap_sys_log)
+		if mod.handle != nil {
+			mod.handle.Close()
+		}
 	})
 }
 
@@ -800,6 +805,11 @@ func (mod *WiFiModule) Stop() error {
 		}
 		mod.reads.Wait()
 		// close the pcap handle to make the main for exit
-		mod.handle.Close()
+		// (handle can be nil if Stop races with a concurrent Configure/Start,
+		// e.g. a rapid "wifi.recon off; wifi.recon on" triggered right after
+		// a channel-hop error - see fix_services.py's on_bcap_sys_log)
+		if mod.handle != nil {
+			mod.handle.Close()
+		}
 	})
 }
