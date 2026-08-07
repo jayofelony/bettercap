@@ -3,7 +3,7 @@ package http_proxy
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -76,7 +76,29 @@ func (j *JSResponse) WasModified() bool {
 	return j.NewHash() != j.refHash
 }
 
+func (j *JSResponse) CheckIfModifiedAndUpdateHash() bool {
+	newHash := j.NewHash()
+	if j.bodyRead {
+		// body was read
+		j.refHash = newHash
+		return true
+	} else if j.bodyClear {
+		// body was cleared manually
+		j.refHash = newHash
+		return true
+	} else if j.Body != "" {
+		// body was not read but just set
+		j.refHash = newHash
+		return true
+	}
+	// check if res was changed and update its hash
+	wasModified := j.refHash != newHash
+	j.refHash = newHash
+	return wasModified
+}
+
 func (j *JSResponse) GetHeader(name, deflt string) string {
+	name = strings.ToLower(name)
 	headers := strings.Split(j.Headers, "\r\n")
 	for i := 0; i < len(headers); i++ {
 		if headers[i] != "" {
@@ -84,14 +106,32 @@ func (j *JSResponse) GetHeader(name, deflt string) string {
 			if len(header_parts) != 0 && len(header_parts[0]) == 3 {
 				header_name := string(header_parts[0][1])
 				header_value := string(header_parts[0][2])
-
-				if strings.ToLower(name) == strings.ToLower(header_name) {
+				if name == strings.ToLower(header_name) {
 					return header_value
 				}
 			}
 		}
 	}
 	return deflt
+}
+
+func (j *JSResponse) GetHeaders(name string) []string {
+	name = strings.ToLower(name)
+	headers := strings.Split(j.Headers, "\r\n")
+	header_values := make([]string, 0, len(headers))
+	for i := 0; i < len(headers); i++ {
+		if headers[i] != "" {
+			header_parts := header_regexp.FindAllSubmatch([]byte(headers[i]), 1)
+			if len(header_parts) != 0 && len(header_parts[0]) == 3 {
+				header_name := string(header_parts[0][1])
+				header_value := string(header_parts[0][2])
+				if name == strings.ToLower(header_name) {
+					header_values = append(header_values, header_value)
+				}
+			}
+		}
+	}
+	return header_values
 }
 
 func (j *JSResponse) SetHeader(name, value string) {
@@ -168,7 +208,7 @@ func (j *JSResponse) ToResponse(req *http.Request) (resp *http.Response) {
 func (j *JSResponse) ReadBody() string {
 	defer j.resp.Body.Close()
 
-	raw, err := ioutil.ReadAll(j.resp.Body)
+	raw, err := io.ReadAll(j.resp.Body)
 	if err != nil {
 		return ""
 	}
@@ -177,7 +217,7 @@ func (j *JSResponse) ReadBody() string {
 	j.bodyRead = true
 	j.bodyClear = false
 	// reset the response body to the original unread state
-	j.resp.Body = ioutil.NopCloser(bytes.NewBuffer(raw))
+	j.resp.Body = io.NopCloser(bytes.NewBuffer(raw))
 
 	return j.Body
 }

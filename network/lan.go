@@ -62,7 +62,7 @@ func (lan *LAN) Get(mac string) (*Endpoint, bool) {
 
 	if mac == lan.iface.HwAddress {
 		return lan.iface, true
-	} else if mac == lan.gateway.HwAddress {
+	} else if lan.gateway != nil && mac == lan.gateway.HwAddress {
 		return lan.gateway, true
 	}
 
@@ -78,7 +78,7 @@ func (lan *LAN) GetByIp(ip string) *Endpoint {
 
 	if ip == lan.iface.IpAddress || ip == lan.iface.Ip6Address {
 		return lan.iface
-	} else if ip == lan.gateway.IpAddress || ip == lan.gateway.Ip6Address {
+	} else if lan.gateway != nil && (ip == lan.gateway.IpAddress || ip == lan.gateway.Ip6Address) {
 		return lan.gateway
 	}
 
@@ -102,12 +102,18 @@ func (lan *LAN) List() (list []*Endpoint) {
 	return
 }
 
+func (lan *LAN) NumHosts() int {
+	lan.Lock()
+	defer lan.Unlock()
+	return len(lan.hosts)
+}
+
 func (lan *LAN) Aliases() *data.UnsortedKV {
 	return lan.aliases
 }
 
 func (lan *LAN) WasMissed(mac string) bool {
-	if mac == lan.iface.HwAddress || mac == lan.gateway.HwAddress {
+	if mac == lan.iface.HwAddress || (lan.gateway != nil && mac == lan.gateway.HwAddress) {
 		return false
 	}
 
@@ -141,7 +147,7 @@ func (lan *LAN) shouldIgnore(ip, mac string) bool {
 		return true
 	}
 	// skip the gateway
-	if ip == lan.gateway.IpAddress || ip == lan.gateway.Ip6Address || mac == lan.gateway.HwAddress {
+	if lan.gateway != nil && (ip == lan.gateway.IpAddress || ip == lan.gateway.Ip6Address || mac == lan.gateway.HwAddress) {
 		return true
 	}
 	// skip broadcast addresses
@@ -154,7 +160,7 @@ func (lan *LAN) shouldIgnore(ip, mac string) bool {
 	}
 	// skip everything which is not in our subnet (multicast noise)
 	addr := net.ParseIP(ip)
-	return addr.To4() != nil && !lan.iface.Net.Contains(addr)
+	return addr.To4() != nil && lan.iface.Net != nil && !lan.iface.Net.Contains(addr)
 }
 
 func (lan *LAN) Has(ip string) bool {

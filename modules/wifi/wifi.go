@@ -104,7 +104,10 @@ func NewWiFiModule(s *session.Session) *WiFiModule {
 	}
 
 	mod.InitState("channels")
+	mod.InitState("channel")
+
 	mod.State.Store("channels", []int{})
+	mod.State.Store("channel", 0)
 
 	mod.AddParam(session.NewStringParameter("wifi.interface",
 		"",
@@ -262,8 +265,8 @@ func NewWiFiModule(s *session.Session) *WiFiModule {
 
 	mod.AddHandler(probe)
 
-	channelSwitchAnnounce := session.NewModuleHandler("wifi.channel_switch_announce bssid channel ", `wifi\.channel_switch_announce ((?:[a-fA-F0-9:]{11,}))\s+((?:[0-9]+))`,
-		"Start a 802.11 channel hop attack, all client will be force to change the channel lead to connection down.",
+	channelSwitchAnnounce := session.NewModuleHandler("wifi.channel_switch_announce BSSID CHANNEL ", `wifi\.channel_switch_announce ((?:[a-fA-F0-9:]{11,}))\s+((?:[0-9]+))`,
+		"Start a 802.11 channel hop attack, all client will be forced to change the channel lead to connection down.",
 		func(args []string) error {
 			bssid, err := net.ParseMAC(args[0])
 			if err != nil {
@@ -526,14 +529,27 @@ const (
 func (mod *WiFiModule) setFrequencies(freqs []int) {
 	mod.Debug("new frequencies: %v", freqs)
 
-	mod.frequencies = freqs
+	valid_freqs := []int{}
 	channels := []int{}
 	for _, freq := range freqs {
+		// Some devices support frequencies that don't correspond to valid WiFi channels.
+		// While interesting, they are unlikely to be useful to us.
 		channel := network.Dot11Freq2Chan(freq)
+		if channel == 0 || freq != network.Dot11Chan2Freq(channel) {
+			continue
+		}
+
 		if !slices.Contains(channels, channel) {
+			valid_freqs = append(valid_freqs, freq)
 			channels = append(channels, channel)
 		}
 	}
+
+	if len(valid_freqs) < len(freqs) {
+		mod.Debug("valid frequencies: %v", valid_freqs)
+	}
+	mod.frequencies = valid_freqs
+
 	sort.Ints(channels)
 
 	mod.State.Store("channels", channels)
@@ -648,19 +664,22 @@ func (mod *WiFiModule) Configure() error {
 	mod.hopPeriod = time.Duration(hopPeriod) * time.Millisecond
 
 	if mod.source == "" {
-		if freqs, err := network.GetSupportedFrequencies(ifName); err != nil {
-			return fmt.Errorf("error while getting supported frequencies of %s: %s", ifName, err)
-		} else {
-			mod.setFrequencies(freqs)
-		}
+		if len(mod.frequencies) == 0 {
+			if freqs, err := network.GetSupportedFrequencies(ifName); err != nil {
+				return fmt.Errorf("error while getting supported frequencies of %s: %s", ifName, err)
+			} else {
+				mod.setFrequencies(freqs)
+			}
 
-		mod.Debug("wifi supported frequencies: %v", mod.frequencies)
+			mod.Debug("wifi supported frequencies: %v", mod.frequencies)
+		}
 
 		// we need to start somewhere, this is just to check if
 		// this OS supports switching channel programmatically.
 		if err = network.SetInterfaceChannel(ifName, 1); err != nil {
 			return fmt.Errorf("error while initializing %s to channel 1: %s", ifName, err)
 		}
+		mod.State.Store("channel", 1)
 
 		mod.Info("started (min rssi: %d dBm)", mod.minRSSI)
 	}

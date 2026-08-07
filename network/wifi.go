@@ -13,37 +13,59 @@ import (
 	"github.com/gopacket/gopacket/pcapgo"
 
 	"github.com/evilsocket/islazy/data"
-	"github.com/evilsocket/islazy/fs"
 )
 
 func Dot11Freq2Chan(freq int) int {
-	if freq <= 2472 { // 2.4 GHz Wi-Fi
+	switch {
+	case freq <= 2472:
 		return ((freq - 2412) / 5) + 1
-	} else if freq == 2484 { // Channel 14 special
+
+	case freq == 2484:
 		return 14
-	} else if freq >= 5150 && freq <= 5850 { // 5 GHz Wi-Fi
-		if freq < 5270 { // Channels 36-48
-			return ((freq - 5180) / 20) + 36
-		} else { // Channels 149-165
-			return ((freq - 5745) / 20) + 149
-		}
-	} else if freq >= 5950 && freq <= 7115 { // 6 GHz Wi-Fi
-		return ((freq - 5950) / 5) + 1
+
+	case freq >= 5035 && freq <= 5865:
+		return ((freq - 5035) / 5) + 7
+
+	case freq >= 5875 && freq <= 5895:
+		return 177
+
+	case freq >= 5955 && freq <= 7115: // 6GHz
+		return ((freq - 5955) / 5) + 1
 	}
+
 	return 0
+}
+
+var dot11Channel5GHz = map[int]struct{}{
+	36:  {}, 40:  {}, 44:  {}, 48:  {},
+	52:  {}, 56:  {}, 60:  {}, 64:  {},
+
+	68:  {}, 72:  {}, 76:  {}, 80:  {},
+	100: {}, 104: {}, 108: {}, 112: {},
+
+	116: {}, 120: {}, 124: {}, 128: {},
+	132: {}, 136: {}, 140: {}, 144: {},
+
+	149: {}, 153: {}, 157: {}, 161: {},
+	165: {}, 169: {}, 173: {}, 177: {},
 }
 
 func Dot11Chan2Freq(channel int) int {
 	if channel <= 13 {
 		return ((channel - 1) * 5) + 2412
-	} else if channel == 14 {
+	}
+
+	if channel == 14 {
 		return 2484
-	} else if channel <= 173 {
+	}
+
+	if _, ok := dot11Channel5GHz[channel]; ok {
 		return ((channel - 7) * 5) + 5035
-	} else if channel == 177 {
-		return 5885
-	} else if channel >= 1 && channel <= 233 {
-		return ((channel - 1) * 5) + 5950
+	}
+	
+	// 6GHz - Skipped 1-13 to avoid 2Ghz channels conflict
+	if channel >= 17 && channel <= 253 {
+		return ((channel - 1) * 5) + 5955
 	}
 
 	return 0
@@ -209,6 +231,13 @@ func (w *WiFi) Clear() {
 	w.aps = make(map[string]*AccessPoint)
 }
 
+func (w *WiFi) NumAPs() int {
+	w.RLock()
+	defer w.RUnlock()
+
+	return len(w.aps)
+}
+
 func (w *WiFi) NumHandshakes() int {
 	w.RLock()
 	defer w.RUnlock()
@@ -234,20 +263,18 @@ func (w *WiFi) SaveHandshakesTo(fileName string, linkType layers.LinkType) error
 		}
 	}
 
-	doHead := !fs.Exists(fileName)
 	fp, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		return err
 	}
 	defer fp.Close()
 
-	writer := pcapgo.NewWriter(fp)
-
-	if doHead {
-		if err = writer.WriteFileHeader(65536, linkType); err != nil {
-			return err
-		}
+	writer, err := pcapgo.NewNgWriter(fp, linkType)
+	if err != nil {
+		return err
 	}
+
+	defer writer.Flush()
 
 	w.RLock()
 	defer w.RUnlock()
@@ -259,7 +286,9 @@ func (w *WiFi) SaveHandshakesTo(fileName string, linkType layers.LinkType) error
 				err = nil
 				station.Handshake.EachUnsavedPacket(func(pkt gopacket.Packet) {
 					if err == nil {
-						err = writer.WritePacket(pkt.Metadata().CaptureInfo, pkt.Data())
+						ci := pkt.Metadata().CaptureInfo
+						ci.InterfaceIndex = 0
+						err = writer.WritePacket(ci, pkt.Data())
 					}
 				})
 				if err != nil {

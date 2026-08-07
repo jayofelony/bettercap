@@ -22,7 +22,7 @@ type PacketProxy struct {
 	rule       string
 	queue      *nfqueue.Nfqueue
 	queueNum   int
-	queueCb    nfqueue.HookFunc
+	queueCb    func(q *nfqueue.Nfqueue, a nfqueue.Attribute) int
 	pluginPath string
 	plugin     *plugin.Plugin
 }
@@ -149,7 +149,7 @@ func (mod *PacketProxy) Configure() (err error) {
 			return
 		} else if sym, err = mod.plugin.Lookup("OnPacket"); err != nil {
 			return
-		} else if mod.queueCb, ok = sym.(func(nfqueue.Attribute) int); !ok {
+		} else if mod.queueCb, ok = sym.(func(q *nfqueue.Nfqueue, a nfqueue.Attribute) int); !ok {
 			return fmt.Errorf("Symbol OnPacket is not a valid callback function.")
 		}
 
@@ -198,7 +198,7 @@ func (mod *PacketProxy) Configure() (err error) {
 // CGO callback ... ¯\_(ツ)_/¯
 func dummyCallback(attribute nfqueue.Attribute) int {
 	if mod.queueCb != nil {
-		return mod.queueCb(attribute)
+		return mod.queueCb(mod.queue, attribute)
 	} else {
 		id := *attribute.PacketID
 

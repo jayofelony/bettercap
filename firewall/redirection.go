@@ -3,12 +3,13 @@ package firewall
 import "fmt"
 
 type Redirection struct {
-	Interface  string
-	Protocol   string
-	SrcAddress string
-	SrcPort    int
-	DstAddress string
-	DstPort    int
+	Interface      string
+	Protocol       string
+	SrcAddress     string
+	SrcPort        int
+	DstAddress     string
+	DstPort        int
+	ExcludeAddress string // If set, traffic destined to this address is NOT redirected
 }
 
 func NewRedirection(iface string, proto string, port_from int, addr_to string, port_to int) *Redirection {

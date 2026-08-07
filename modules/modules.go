@@ -26,6 +26,7 @@ import (
 	"github.com/bettercap/bettercap/v2/modules/net_recon"
 	"github.com/bettercap/bettercap/v2/modules/net_sniff"
 	"github.com/bettercap/bettercap/v2/modules/packet_proxy"
+	"github.com/bettercap/bettercap/v2/modules/ssh_proxy"
 	"github.com/bettercap/bettercap/v2/modules/syn_scan"
 	"github.com/bettercap/bettercap/v2/modules/tcp_proxy"
 	"github.com/bettercap/bettercap/v2/modules/ticker"
@@ -62,6 +63,7 @@ func LoadModules(sess *session.Session) {
 	sess.Register(packet_proxy.NewPacketProxy(sess))
 	sess.Register(net_probe.NewProber(sess))
 	sess.Register(syn_scan.NewSynScanner(sess))
+	sess.Register(ssh_proxy.NewSSHProxy(sess))
 	sess.Register(tcp_proxy.NewTcpProxy(sess))
 	sess.Register(ticker.NewTicker(sess))
 	sess.Register(wifi.NewWiFiModule(sess))

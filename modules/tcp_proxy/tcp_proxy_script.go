@@ -1,6 +1,7 @@
 package tcp_proxy
 
 import (
+	"encoding/json"
 	"net"
 	"strings"
 
@@ -55,12 +56,36 @@ func (s *TcpProxyScript) OnData(from, to net.Addr, data []byte, callback func(ca
 			log.Error("error while executing onData callback: %s", err)
 			return nil
 		} else if ret != nil {
-			array, ok := ret.([]byte)
-			if !ok {
-				log.Error("error while casting exported value to array of byte: value = %+v", ret)
-			}
-			return array
+			return toByteArray(ret)
 		}
 	}
+	return nil
+}
+
+func toByteArray(ret interface{}) []byte {
+	// this approach is a bit hacky but it handles all cases
+
+	// serialize ret to JSON
+	if jsonData, err := json.Marshal(ret); err == nil {
+		// attempt to deserialize as []float64
+		var back2Array []float64
+		if err := json.Unmarshal(jsonData, &back2Array); err == nil {
+			result := make([]byte, len(back2Array))
+			for i, num := range back2Array {
+				if num >= 0 && num <= 255 {
+					result[i] = byte(num)
+				} else {
+					log.Error("array element at index %d is not a valid byte value %d", i, num)
+					return nil
+				}
+			}
+			return result
+		} else {
+			log.Error("failed to deserialize %+v to []float64: %v", ret, err)
+		}
+	} else {
+		log.Error("failed to serialize %+v to JSON: %v", ret, err)
+	}
+
 	return nil
 }

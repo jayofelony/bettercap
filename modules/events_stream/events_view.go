@@ -65,7 +65,7 @@ func (mod *EventsStream) viewEndpointEvent(output io.Writer, e session.Event) {
 }
 
 func (mod *EventsStream) viewModuleEvent(output io.Writer, e session.Event) {
-	if *mod.Session.Options.Debug {
+	if mod.Session.Options.Debug {
 		fmt.Fprintf(output, "[%s] [%s] %s\n",
 			e.Time.Format(mod.timeFormat),
 			tui.Green(e.Tag),
@@ -137,7 +137,7 @@ func (mod *EventsStream) Render(output io.Writer, e session.Event) {
 	} else if strings.HasPrefix(e.Tag, "zeroconf.") {
 		mod.viewZeroConfEvent(output, e)
 	} else if !strings.HasPrefix(e.Tag, "tick") && e.Tag != "session.started" && e.Tag != "session.stopped" {
-		fmt.Fprintf(output, "[%s] [%s] %v\n", e.Time.Format(mod.timeFormat), tui.Green(e.Tag), e)
+		fmt.Fprintf(output, "[%s] [%s] %v\n", e.Time.Format(mod.timeFormat), tui.Green(e.Tag), e.Data)
 	}
 }
 

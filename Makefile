@@ -2,14 +2,15 @@ TARGET   ?= bettercap
 PACKAGES ?= core firewall log modules network packets session tls
 PREFIX   ?= /usr/local
 GO       ?= go
+GOFMT    ?= gofmt
 
 all: build
 
 build: resources
-	$(GOFLAGS) $(GO) build -o $(TARGET) .
+	$(GO) build $(GOFLAGS) -o $(TARGET) .
 
 build_with_race_detector: resources
-	$(GOFLAGS) $(GO) build -race -o $(TARGET) .
+	$(GO) build $(GOFLAGS) -race -o $(TARGET) .
 
 resources: network/manuf.go
 
@@ -24,19 +25,28 @@ docker:
 	@docker build -t bettercap:latest .
 
 test:
-	$(GOFLAGS) $(GO) test -covermode=atomic -coverprofile=cover.out ./...
+	$(GO) test -covermode=atomic -coverprofile=cover.out ./...
 
 html_coverage: test
-	$(GOFLAGS) $(GO) tool cover -html=cover.out -o cover.out.html
+	$(GO) tool cover -html=cover.out -o cover.out.html
 
 benchmark: server_deps
-	$(GOFLAGS) $(GO) test -v -run=doNotRunTests -bench=. -benchmem ./...
+	$(GO) test -v -run=doNotRunTests -bench=. -benchmem ./...
 
 fmt:
-	$(GO) fmt -s -w $(PACKAGES)
+	$(GOFMT) -s -w $(PACKAGES)
 
 clean:
 	$(RM) $(TARGET)
 	$(RM) -r build
+
+build-arm64: clean
+	docker build -f Dockerfile.arm64 \
+		--target=output \
+		--output type=local,dest=. \
+		.
+
+sync-arm64:
+	rsync -rvzc ./bettercap pi@10.0.0.2:/home/pi/
 
 .PHONY: all build build_with_race_detector resources install docker test html_coverage benchmark fmt clean

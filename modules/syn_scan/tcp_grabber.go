@@ -2,7 +2,6 @@ package syn_scan
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -23,7 +22,7 @@ func tcpGrabber(mod *SynScanner, ip string, port int) string {
 		Timeout: bannerGrabTimeout,
 	}
 
-	if conn, err := dialer.Dial("tcp", fmt.Sprintf("%s:%d", ip, port)); err == nil {
+	if conn, err := dialer.Dial("tcp", net.JoinHostPort(ip, strconv.Itoa(port))); err == nil {
 		defer conn.Close()
 		msg, _ := bufio.NewReader(conn).ReadString('\n')
 		return cleanBanner(strings.Trim(msg, "\r\n\t "))

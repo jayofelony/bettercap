@@ -99,8 +99,6 @@ func (f *LinuxFirewall) getCommandLine(r *Redirection, enabled bool) (cmdLine []
 			"-i", r.Interface,
 			"-p", r.Protocol,
 			"--dport", fmt.Sprintf("%d", r.SrcPort),
-			"-j", "DNAT",
-			"--to", fmt.Sprintf("%s:%d", destination, r.DstPort),
 		}
 	} else {
 		cmdLine = []string{
@@ -110,10 +108,18 @@ func (f *LinuxFirewall) getCommandLine(r *Redirection, enabled bool) (cmdLine []
 			"-p", r.Protocol,
 			"-d", r.SrcAddress,
 			"--dport", fmt.Sprintf("%d", r.SrcPort),
-			"-j", "DNAT",
-			"--to", fmt.Sprintf("%s:%d", destination, r.DstPort),
 		}
 	}
+
+	// Exclude traffic destined to the proxy machine itself (prevents redirect loops)
+	if r.ExcludeAddress != "" {
+		cmdLine = append(cmdLine, "!", "-d", r.ExcludeAddress)
+	}
+
+	cmdLine = append(cmdLine,
+		"-j", "DNAT",
+		"--to", fmt.Sprintf("%s:%d", destination, r.DstPort),
+	)
 
 	return
 }

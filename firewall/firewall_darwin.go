@@ -108,8 +108,16 @@ func (f PfFirewall) generateRule(r *Redirection) string {
 		dst_a = r.DstAddress
 	}
 
-	return fmt.Sprintf("rdr pass on %s proto %s from any to %s port %d -> %s port %d",
+	rule := ""
+	// Exclude traffic destined to the proxy machine itself (prevents redirect loops)
+	if r.ExcludeAddress != "" {
+		rule += fmt.Sprintf("no rdr on %s proto %s from any to %s port %d\n",
+			r.Interface, r.Protocol, r.ExcludeAddress, r.SrcPort)
+	}
+
+	rule += fmt.Sprintf("rdr pass on %s proto %s from any to %s port %d -> %s port %d",
 		r.Interface, r.Protocol, src_a, r.SrcPort, dst_a, r.DstPort)
+	return rule
 }
 
 func (f *PfFirewall) enable(enabled bool) {

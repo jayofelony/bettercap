@@ -17,6 +17,7 @@ import (
 
 type SnifferContext struct {
 	Handle       *pcap.Handle
+	Interface    string
 	Source       string
 	DumpLocal    bool
 	Verbose      bool
@@ -25,7 +26,7 @@ type SnifferContext struct {
 	Compiled     *regexp.Regexp
 	Output       string
 	OutputFile   *os.File
-	OutputWriter *pcapgo.Writer
+	OutputWriter *pcapgo.NgWriter
 }
 
 func (mod *Sniffer) GetContext() (error, *SnifferContext) {
@@ -37,13 +38,22 @@ func (mod *Sniffer) GetContext() (error, *SnifferContext) {
 		return err, ctx
 	}
 
+	if err, ctx.Interface = mod.StringParam("net.sniff.interface"); err != nil {
+		return err, ctx
+	}
+
+	if ctx.Interface == "" {
+		ctx.Interface = mod.Session.Interface.Name()
+	}
+
 	if ctx.Source == "" {
 		/*
 		 * We don't want to pcap.BlockForever otherwise pcap_close(handle)
 		 * could hang waiting for a timeout to expire ...
 		 */
+
 		readTimeout := 500 * time.Millisecond
-		if ctx.Handle, err = network.CaptureWithTimeout(mod.Session.Interface.Name(), readTimeout); err != nil {
+		if ctx.Handle, err = network.CaptureWithTimeout(ctx.Interface, readTimeout); err != nil {
 			return err, ctx
 		}
 	} else {
@@ -84,8 +94,10 @@ func (mod *Sniffer) GetContext() (error, *SnifferContext) {
 			return err, ctx
 		}
 
-		ctx.OutputWriter = pcapgo.NewWriter(ctx.OutputFile)
-		ctx.OutputWriter.WriteFileHeader(65536, ctx.Handle.LinkType())
+		ctx.OutputWriter, err = pcapgo.NewNgWriter(ctx.OutputFile, ctx.Handle.LinkType())
+		if err != nil {
+			return err, ctx
+		}
 	}
 
 	return nil, ctx
@@ -94,6 +106,8 @@ func (mod *Sniffer) GetContext() (error, *SnifferContext) {
 func NewSnifferContext() *SnifferContext {
 	return &SnifferContext{
 		Handle:       nil,
+		Interface:    "",
+		Source:       "",
 		DumpLocal:    false,
 		Verbose:      false,
 		Filter:       "",
@@ -115,7 +129,8 @@ var (
 )
 
 func (c *SnifferContext) Log(sess *session.Session) {
-	log.Info("Skip local packets : %s", yn[c.DumpLocal])
+	log.Info("Interface          : %s", tui.Bold(c.Interface))
+	log.Info("Skip local packets : %s", yn[!c.DumpLocal])
 	log.Info("Verbose            : %s", yn[c.Verbose])
 	log.Info("BPF Filter         : '%s'", tui.Yellow(c.Filter))
 	log.Info("Regular expression : '%s'", tui.Yellow(c.Expression))

@@ -16,6 +16,8 @@
     <a href="https://github.com/bettercap/bettercap/actions/workflows/test-on-macos.yml"><img alt="Tests on macOS" src="https://github.com/bettercap/bettercap/actions/workflows/test-on-macos.yml/badge.svg"></a>
     <a href="https://github.com/bettercap/bettercap/actions/workflows/test-on-windows.yml"><img alt="Tests on Windows" src="https://github.com/bettercap/bettercap/actions/workflows/test-on-windows.yml/badge.svg"></a>
     <a href="https://hub.docker.com/r/bettercap/bettercap"><img alt="Docker Hub" src="https://img.shields.io/docker/v/bettercap/bettercap?logo=docker"></a>
+    <img src="https://img.shields.io/badge/human-coded-brightgreen?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1wZXJzb24tc3RhbmRpbmctaWNvbiBsdWNpZGUtcGVyc29uLXN0YW5kaW5nIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjUiIHI9IjEiLz48cGF0aCBkPSJtOSAyMCAzLTYgMyA2Ii8+PHBhdGggZD0ibTYgOCA2IDIgNi0yIi8+PHBhdGggZD0iTTEyIDEwdjQiLz48L3N2Zz4=" alt="This project is 100% made by humans."/>
+
   </p>
 </p>
 
@@ -35,12 +37,18 @@ bettercap is a powerful, easily extensible and portable framework written in Go 
 * A powerful **network sniffer** for **credentials harvesting** which can also be used as a **network protocol fuzzer**.
 * A very fast port scanner.
 * A powerful [REST API](https://www.bettercap.org/modules/core/api.rest/) with support for asynchronous events notification on websocket to orchestrate your attacks easily.
-* **A very convenient [web UI](https://www.bettercap.org/usage/#web-ui).**
+* **A very convenient [web UI](https://www.bettercap.org/usage/web_ui/).**
 * [More!](https://www.bettercap.org/modules/)
+
+## Contributors
+
+<a href="https://github.com/bettercap/bettercap/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=bettercap/bettercap" alt="bettercap project contributors" />
+</a>
 
 ## License
 
-`bettercap` is made with ♥  by [the dev team](https://github.com/orgs/bettercap/people) and it's released under the GPL 3 license.
+`bettercap` is made with ♥ and released under the GPL 3 license.
 
 ## Stargazers over time
 

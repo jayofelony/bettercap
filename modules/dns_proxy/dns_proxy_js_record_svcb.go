@@ -12,7 +12,7 @@ func NewJSSVCBKeyValue(kv dns.SVCBKeyValue) (map[string]interface{}, error) {
 	key := kv.Key()
 
 	jsKv := map[string]interface{}{
-		"Key": uint16(key),
+		"Key": int64(key),
 	}
 
 	switch v := kv.(type) {
@@ -23,7 +23,7 @@ func NewJSSVCBKeyValue(kv dns.SVCBKeyValue) (map[string]interface{}, error) {
 	case *dns.SVCBECHConfig:
 		jsKv["ECH"] = string(v.ECH)
 	case *dns.SVCBPort:
-		jsKv["Port"] = v.Port
+		jsKv["Port"] = int64(v.Port)
 	case *dns.SVCBIPv4Hint:
 		ips := v.Hint
 		jsIps := make([]string, len(ips))
@@ -48,7 +48,7 @@ func NewJSSVCBKeyValue(kv dns.SVCBKeyValue) (map[string]interface{}, error) {
 		for i, _key := range keys {
 			jsKeys[i] = uint16(_key)
 		}
-		jsKv["Code"] = jsKeys
+		jsKv["Code"] = uint16ArrayToInt64Array(jsKeys)
 	default:
 		return nil, fmt.Errorf("error creating JSSVCBKeyValue: unknown key: %d", key)
 	}
@@ -64,20 +64,20 @@ func ToSVCBKeyValue(jsKv map[string]interface{}) (dns.SVCBKeyValue, error) {
 	switch key {
 	case dns.SVCB_ALPN:
 		kv = &dns.SVCBAlpn{
-			Alpn: jsPropToStringArray(jsKv, "Value"),
+			Alpn: jsPropToStringArray(jsKv, "Alpn"),
 		}
 	case dns.SVCB_NO_DEFAULT_ALPN:
 		kv = &dns.SVCBNoDefaultAlpn{}
 	case dns.SVCB_ECHCONFIG:
 		kv = &dns.SVCBECHConfig{
-			ECH: []byte(jsPropToString(jsKv, "Value")),
+			ECH: []byte(jsPropToString(jsKv, "ECH")),
 		}
 	case dns.SVCB_PORT:
 		kv = &dns.SVCBPort{
-			Port: jsPropToUint16(jsKv, "Value"),
+			Port: jsPropToUint16(jsKv, "Port"),
 		}
 	case dns.SVCB_IPV4HINT:
-		jsIps := jsPropToStringArray(jsKv, "Value")
+		jsIps := jsPropToStringArray(jsKv, "Hint")
 		var ips []net.IP
 		for _, jsIp := range jsIps {
 			ip := net.ParseIP(jsIp)
@@ -91,7 +91,7 @@ func ToSVCBKeyValue(jsKv map[string]interface{}) (dns.SVCBKeyValue, error) {
 			Hint: ips,
 		}
 	case dns.SVCB_IPV6HINT:
-		jsIps := jsPropToStringArray(jsKv, "Value")
+		jsIps := jsPropToStringArray(jsKv, "Hint")
 		var ips []net.IP
 		for _, jsIp := range jsIps {
 			ip := net.ParseIP(jsIp)
@@ -106,12 +106,12 @@ func ToSVCBKeyValue(jsKv map[string]interface{}) (dns.SVCBKeyValue, error) {
 		}
 	case dns.SVCB_DOHPATH:
 		kv = &dns.SVCBDoHPath{
-			Template: jsPropToString(jsKv, "Value"),
+			Template: jsPropToString(jsKv, "Template"),
 		}
 	case dns.SVCB_OHTTP:
 		kv = &dns.SVCBOhttp{}
 	case dns.SVCB_MANDATORY:
-		v := jsPropToUint16Array(jsKv, "Value")
+		v := jsPropToUint16Array(jsKv, "Code")
 		keys := make([]dns.SVCBKey, len(v))
 		for i, jsKey := range v {
 			keys[i] = dns.SVCBKey(jsKey)
