@@ -64,3 +64,5 @@ require (
 	golang.org/x/tools v0.44.0 // indirect
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 )
+
+replace github.com/gopacket/gopacket => github.com/jayofelony/gopacket v1.3.2-0.20260807221902-5553aa1737d5
