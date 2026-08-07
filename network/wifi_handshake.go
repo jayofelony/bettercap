@@ -1,6 +1,7 @@
 package network
 
 import (
+	"hash/crc32"
 	"sync"
 
 	"github.com/gopacket/gopacket"
@@ -16,6 +17,15 @@ type Handshake struct {
 	Confirmations []gopacket.Packet
 	hasPMKID      bool
 	unsaved       []gopacket.Packet
+	// seen tracks packets already queued (or already flushed) by content
+	// checksum, so the same physical frame handed to SetBeacon/AddFrame/
+	// AddExtra more than once - which happens, e.g. a frame matching both
+	// the primary EAPOL parse and the separate "extra frame" collection
+	// pass in discoverHandshakes - isn't written to the pcapng file twice.
+	// A duplicate written in a later batch than its original appears
+	// "out of sequence" to hcxpcapngtool even though each batch is itself
+	// sorted by timestamp.
+	seen map[uint32]struct{}
 }
 
 func NewHandshake() *Handshake {
@@ -24,7 +34,19 @@ func NewHandshake() *Handshake {
 		Responses:     make([]gopacket.Packet, 0),
 		Confirmations: make([]gopacket.Packet, 0),
 		unsaved:       make([]gopacket.Packet, 0),
+		seen:          make(map[uint32]struct{}),
 	}
+}
+
+// addUnsaved queues pkt for writing unless an identical packet has already
+// been queued or written.
+func (h *Handshake) addUnsaved(pkt gopacket.Packet) {
+	sum := crc32.ChecksumIEEE(pkt.Data())
+	if _, dup := h.seen[sum]; dup {
+		return
+	}
+	h.seen[sum] = struct{}{}
+	h.unsaved = append(h.unsaved, pkt)
 }
 
 func (h *Handshake) SetBeacon(pkt gopacket.Packet) {
@@ -33,7 +55,7 @@ func (h *Handshake) SetBeacon(pkt gopacket.Packet) {
 
 	if h.Beacon == nil {
 		h.Beacon = pkt
-		h.unsaved = append(h.unsaved, pkt)
+		h.addUnsaved(pkt)
 	}
 }
 
@@ -76,13 +98,13 @@ func (h *Handshake) AddFrame(n int, pkt gopacket.Packet) {
 		h.Confirmations = append(h.Confirmations, pkt)
 	}
 
-	h.unsaved = append(h.unsaved, pkt)
+	h.addUnsaved(pkt)
 }
 
 func (h *Handshake) AddExtra(pkt gopacket.Packet) {
 	h.Lock()
 	defer h.Unlock()
-	h.unsaved = append(h.unsaved, pkt)
+	h.addUnsaved(pkt)
 }
 
 func (h *Handshake) Complete() bool {

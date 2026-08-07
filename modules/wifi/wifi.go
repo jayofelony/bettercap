@@ -404,9 +404,9 @@ func NewWiFiModule(s *session.Session) *WiFiModule {
 		}))
 
 	mod.AddParam(session.NewStringParameter("wifi.handshakes.file",
-		"~/bettercap-wifi-handshakes.pcap",
+		"~/bettercap-wifi-handshakes.pcapng",
 		"",
-		"File path of the pcap file to save handshakes to."))
+		"File path of the pcapng file to save handshakes to."))
 
 	mod.AddParam(session.NewBoolParameter("wifi.handshakes.aggregate",
 		"true",
@@ -809,6 +809,7 @@ func (mod *WiFiModule) forcedStop() error {
 		if mod.handle != nil {
 			mod.handle.Close()
 		}
+		mod.Session.WiFi.CloseHandshakeWriters()
 	})
 }
 
@@ -830,5 +831,6 @@ func (mod *WiFiModule) Stop() error {
 		if mod.handle != nil {
 			mod.handle.Close()
 		}
+		mod.Session.WiFi.CloseHandshakeWriters()
 	})
 }

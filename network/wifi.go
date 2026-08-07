@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -82,6 +83,19 @@ type WiFi struct {
 	iface   *Endpoint
 	newCb   APNewCallback
 	lostCb  APLostCallback
+
+	shakesLock    sync.Mutex
+	shakesWriters map[string]*ngHandshakeWriter
+}
+
+// ngHandshakeWriter holds a persistent pcapng writer for one handshake
+// output file, kept open for the life of the process instead of being
+// reopened (and writing a brand new section) on every single packet.
+// Reopening per-packet is what causes the pcapng interface count to climb
+// past hcxpcapngtool's 255-interface cap on long-running captures.
+type ngHandshakeWriter struct {
+	file   *os.File
+	writer *pcapgo.NgWriter
 }
 
 type wifiJSON struct {
@@ -254,49 +268,99 @@ func (w *WiFi) NumHandshakes() int {
 	return sum
 }
 
+type pendingHandshakePacket struct {
+	ci   gopacket.CaptureInfo
+	data []byte
+}
+
 func (w *WiFi) SaveHandshakesTo(fileName string, linkType layers.LinkType) error {
+	hw, err := w.getHandshakeWriter(fileName, linkType)
+	if err != nil {
+		return err
+	}
+
+	// Collect first, write after: w.aps and ap.Clients() are maps, and Go
+	// randomizes map iteration order on every pass. Writing straight from
+	// that loop interleaves different stations' (already-chronological)
+	// packet runs in random order, which is what was producing pcapng's
+	// "out of sequence timestamps" warning - not a capture-timing issue.
+	var pending []pendingHandshakePacket
+
+	w.RLock()
+	for _, ap := range w.aps {
+		for _, station := range ap.Clients() {
+			// if half (which includes also complete) or has pmkid
+			if station.Handshake.Any() {
+				station.Handshake.EachUnsavedPacket(func(pkt gopacket.Packet) {
+					ci := pkt.Metadata().CaptureInfo
+					ci.InterfaceIndex = 0
+					pending = append(pending, pendingHandshakePacket{ci: ci, data: pkt.Data()})
+				})
+			}
+		}
+	}
+	w.RUnlock()
+
+	sort.Slice(pending, func(i, j int) bool {
+		return pending[i].ci.Timestamp.Before(pending[j].ci.Timestamp)
+	})
+
+	for _, p := range pending {
+		if err := hw.writer.WritePacket(p.ci, p.data); err != nil {
+			return err
+		}
+	}
+
+	return hw.writer.Flush()
+}
+
+// getHandshakeWriter returns the persistent pcapng writer for fileName,
+// opening and registering it the first time it's requested.
+func (w *WiFi) getHandshakeWriter(fileName string, linkType layers.LinkType) (*ngHandshakeWriter, error) {
+	w.shakesLock.Lock()
+	defer w.shakesLock.Unlock()
+
+	if hw, found := w.shakesWriters[fileName]; found {
+		return hw, nil
+	}
+
 	// check if folder exists first
 	dirName := filepath.Dir(fileName)
 	if _, err := os.Stat(dirName); err != nil {
 		if err = os.MkdirAll(dirName, os.ModePerm); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	fp, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer fp.Close()
 
 	writer, err := pcapgo.NewNgWriter(fp, linkType)
 	if err != nil {
-		return err
+		fp.Close()
+		return nil, err
 	}
 
-	defer writer.Flush()
-
-	w.RLock()
-	defer w.RUnlock()
-
-	for _, ap := range w.aps {
-		for _, station := range ap.Clients() {
-			// if half (which includes also complete) or has pmkid
-			if station.Handshake.Any() {
-				err = nil
-				station.Handshake.EachUnsavedPacket(func(pkt gopacket.Packet) {
-					if err == nil {
-						ci := pkt.Metadata().CaptureInfo
-						ci.InterfaceIndex = 0
-						err = writer.WritePacket(ci, pkt.Data())
-					}
-				})
-				if err != nil {
-					return err
-				}
-			}
-		}
+	hw := &ngHandshakeWriter{file: fp, writer: writer}
+	if w.shakesWriters == nil {
+		w.shakesWriters = make(map[string]*ngHandshakeWriter)
 	}
+	w.shakesWriters[fileName] = hw
+	return hw, nil
+}
 
-	return nil
+// CloseHandshakeWriters flushes and closes every open handshake pcapng
+// writer. Must be called on session/module shutdown so file handles don't
+// leak and the last written packets are actually flushed to disk.
+func (w *WiFi) CloseHandshakeWriters() {
+	w.shakesLock.Lock()
+	defer w.shakesLock.Unlock()
+
+	for fileName, hw := range w.shakesWriters {
+		hw.writer.Flush()
+		hw.file.Close()
+		delete(w.shakesWriters, fileName)
+	}
 }

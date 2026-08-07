@@ -33,7 +33,7 @@ func (mod *WiFiModule) getHandshakeFileFor(ap *network.AccessPoint) string {
 		if (err == nil) && (fileInfo.IsDir()) {
 			parentDir = shakesFileName
 		}
-		shakesFileName = path.Join(parentDir, fmt.Sprintf("%s.pcap", ap.PathFriendlyName()))
+		shakesFileName = path.Join(parentDir, fmt.Sprintf("%s.pcapng", ap.PathFriendlyName()))
 	}
 	return shakesFileName
 }
