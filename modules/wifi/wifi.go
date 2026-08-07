@@ -84,7 +84,13 @@ func NewWiFiModule(s *session.Session) *WiFiModule {
 		hopPeriod:       250 * time.Millisecond,
 		hopChanges:      make(chan bool),
 		ap:              nil,
-		skipBroken:      true,
+		// unlike general-purpose bettercap use, this fork is built around
+		// unattended handshake capture: a frame failing its FCS check
+		// doesn't mean the EAPOL/ESSID bytes we actually care about are
+		// corrupted, and hcxpcapngtool/hashcat's nonce-error-correction
+		// already accounts for imperfect data downstream. Capture
+		// everything by default instead of pre-filtering it away.
+		skipBroken:      false,
 		apRunning:       false,
 		deauthSkip:      []net.HardwareAddr{},
 		deauthSilent:    false,
@@ -502,7 +508,7 @@ func NewWiFiModule(s *session.Session) *WiFiModule {
 		"If channel hopping is enabled (empty wifi.recon.channel), this is the time in milliseconds the algorithm will hop on every channel (it'll be doubled if both 2.4 and 5.0 bands are available)."))
 
 	mod.AddParam(session.NewBoolParameter("wifi.skip-broken",
-		"true",
+		"false",
 		"If true, dot11 packets with an invalid checksum will be skipped."))
 
 	return mod
