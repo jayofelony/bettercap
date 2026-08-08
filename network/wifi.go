@@ -2,8 +2,10 @@ package network
 
 import (
 	"encoding/json"
+	"hash/crc32"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"sync"
@@ -96,6 +98,29 @@ type WiFi struct {
 type ngHandshakeWriter struct {
 	file   *os.File
 	writer *pcapgo.NgWriter
+	// seen dedups by content checksum at the point of writing to *this
+	// file*, not per-station: the AP's own beacon frame (captured once,
+	// early) gets copied into every new client's own Handshake.unsaved
+	// queue (see discoverHandshakes, "adding beacon frame to handshake"),
+	// so a per-station dedup only catches a station re-sending its own
+	// copy - it doesn't catch a second, different client re-injecting
+	// that same early-timestamped beacon after later data has already
+	// been written, which reintroduces the "out of sequence" ordering
+	// this whole file is trying to avoid.
+	seen map[uint32]struct{}
+	// lastTS is the timestamp of the last packet actually written to this
+	// file. Per-call sorting only orders packets *within* one save; it
+	// can't fix a genuinely different (non-duplicate) frame that was
+	// queued early into some quiet client's own unsaved buffer via
+	// AddExtra and only gets flushed much later, once that specific
+	// client finally has another triggering event - by which point
+	// *other, busier* clients of the same AP have already pushed this
+	// file's timestamps well past it. Clamping to a running monotonic
+	// floor fixes that cross-call, cross-client case: it doesn't lose any
+	// EAPOL/crypto content (that lives in the packet payload, not the
+	// timestamp), it just keeps the file's timestamp column monotonic,
+	// which is all hcxpcapngtool's check actually requires.
+	lastTS time.Time
 }
 
 type wifiJSON struct {
@@ -273,30 +298,35 @@ type pendingHandshakePacket struct {
 	data []byte
 }
 
-func (w *WiFi) SaveHandshakesTo(fileName string, linkType layers.LinkType) error {
+func (w *WiFi) SaveHandshakesTo(ap *AccessPoint, fileName string, linkType layers.LinkType) error {
 	hw, err := w.getHandshakeWriter(fileName, linkType)
 	if err != nil {
 		return err
 	}
 
-	// Collect first, write after: w.aps and ap.Clients() are maps, and Go
-	// randomizes map iteration order on every pass. Writing straight from
-	// that loop interleaves different stations' (already-chronological)
-	// packet runs in random order, which is what was producing pcapng's
-	// "out of sequence timestamps" warning - not a capture-timing issue.
+	// Collect first, write after: ap.Clients() is a map, and Go randomizes
+	// map iteration order on every pass. Writing straight from that loop
+	// interleaves different stations' (already-chronological) packet runs
+	// in random order, which is what was producing pcapng's "out of
+	// sequence timestamps" warning - not a capture-timing issue.
+	//
+	// Scoped to just this ap's clients - this used to iterate every AP in
+	// w.aps regardless of which one fileName belongs to, so any AP's save
+	// would drain (EachUnsavedPacket empties the buffer) and write every
+	// *other* AP's pending packets too, mixing unrelated networks into a
+	// single AP's capture file and making "out of sequence" effectively
+	// unfixable at the write-ordering level alone.
 	var pending []pendingHandshakePacket
 
 	w.RLock()
-	for _, ap := range w.aps {
-		for _, station := range ap.Clients() {
-			// if half (which includes also complete) or has pmkid
-			if station.Handshake.Any() {
-				station.Handshake.EachUnsavedPacket(func(pkt gopacket.Packet) {
-					ci := pkt.Metadata().CaptureInfo
-					ci.InterfaceIndex = 0
-					pending = append(pending, pendingHandshakePacket{ci: ci, data: pkt.Data()})
-				})
-			}
+	for _, station := range ap.Clients() {
+		// if half (which includes also complete) or has pmkid
+		if station.Handshake.Any() {
+			station.Handshake.EachUnsavedPacket(func(pkt gopacket.Packet) {
+				ci := pkt.Metadata().CaptureInfo
+				ci.InterfaceIndex = 0
+				pending = append(pending, pendingHandshakePacket{ci: ci, data: pkt.Data()})
+			})
 		}
 	}
 	w.RUnlock()
@@ -306,9 +336,18 @@ func (w *WiFi) SaveHandshakesTo(fileName string, linkType layers.LinkType) error
 	})
 
 	for _, p := range pending {
+		sum := crc32.ChecksumIEEE(p.data)
+		if _, dup := hw.seen[sum]; dup {
+			continue
+		}
+		if !hw.lastTS.IsZero() && p.ci.Timestamp.Before(hw.lastTS) {
+			p.ci.Timestamp = hw.lastTS.Add(time.Nanosecond)
+		}
 		if err := hw.writer.WritePacket(p.ci, p.data); err != nil {
 			return err
 		}
+		hw.lastTS = p.ci.Timestamp
+		hw.seen[sum] = struct{}{}
 	}
 
 	return hw.writer.Flush()
@@ -337,13 +376,21 @@ func (w *WiFi) getHandshakeWriter(fileName string, linkType layers.LinkType) (*n
 		return nil, err
 	}
 
-	writer, err := pcapgo.NewNgWriter(fp, linkType)
+	intf := pcapgo.DefaultNgInterface
+	intf.LinkType = linkType
+	writer, err := pcapgo.NewNgWriterInterface(fp, intf, pcapgo.NgWriterOptions{
+		SectionInfo: pcapgo.NgSectionInfo{
+			Hardware:    runtime.GOARCH,
+			OS:          runtime.GOOS,
+			Application: "Pwnagotchi",
+		},
+	})
 	if err != nil {
 		fp.Close()
 		return nil, err
 	}
 
-	hw := &ngHandshakeWriter{file: fp, writer: writer}
+	hw := &ngHandshakeWriter{file: fp, writer: writer, seen: make(map[uint32]struct{})}
 	if w.shakesWriters == nil {
 		w.shakesWriters = make(map[string]*ngHandshakeWriter)
 	}

@@ -118,7 +118,7 @@ func (mod *WiFiModule) discoverHandshakes(radiotap *layers.RadioTap, dot11 *laye
 		doSave := numUnsaved > 0
 		if doSave && shakesFileName != "" {
 			mod.Debug("(aggregate %v) saving handshake frames to %s", mod.shakesAggregate, shakesFileName)
-			if err := mod.Session.WiFi.SaveHandshakesTo(shakesFileName, mod.handle.LinkType()); err != nil {
+			if err := mod.Session.WiFi.SaveHandshakesTo(ap, shakesFileName, mod.handle.LinkType()); err != nil {
 				mod.Error("error while saving handshake frames to %s: %s", shakesFileName, err)
 			}
 		}
@@ -197,7 +197,7 @@ func (mod *WiFiModule) discoverHandshakes(radiotap *layers.RadioTap, dot11 *laye
 			shakesFileName := mod.getHandshakeFileFor(targetAP)
 			if shakesFileName != "" {
 				mod.Debug("(aggregate %v) saving handshake frames to %s", mod.shakesAggregate, shakesFileName)
-				if err := mod.Session.WiFi.SaveHandshakesTo(shakesFileName, mod.handle.LinkType()); err != nil {
+				if err := mod.Session.WiFi.SaveHandshakesTo(targetAP, shakesFileName, mod.handle.LinkType()); err != nil {
 					mod.Error("error while saving handshake frames to %s: %s", shakesFileName, err)
 				}
 			}
