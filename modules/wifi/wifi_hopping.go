@@ -26,7 +26,25 @@ func (mod *WiFiModule) isInterfaceConnected() bool {
 func (mod *WiFiModule) hopUnlocked(channel int) (mustStop bool) {
 	// mod.Debug("hopping on channel %d", channel)
 
-	if err := network.SetInterfaceChannel(mod.iface.Name(), channel); err != nil {
+	// a single SetInterfaceChannel failure is usually a transient nl80211
+	// hiccup (busy while a concurrent deauth/injection call is in flight,
+	// or a brief brcmfmac stall) rather than a real fault, so retry a
+	// couple of times with a short backoff before surfacing it as a
+	// Warning. This used to require pwnagotchi's fix_services plugin to
+	// notice several of these warnings in the journal and externally flip
+	// wifi.recon off/on to recover - self-healing it here means that
+	// round-trip is only needed for failures that actually persist.
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		if err = network.SetInterfaceChannel(mod.iface.Name(), channel); err == nil {
+			break
+		}
+		if attempt < 2 {
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	if err != nil {
 		// check if the device has been disconnected
 		if mod.isInterfaceConnected() == false {
 			mod.Error("interface %s disconnected, stopping module", mod.iface.Name())
