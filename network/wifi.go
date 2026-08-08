@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/json"
 	"hash/crc32"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -353,6 +354,39 @@ func (w *WiFi) SaveHandshakesTo(ap *AccessPoint, fileName string, linkType layer
 	return hw.writer.Flush()
 }
 
+// lastPcapngPacketTimestamp reads through every packet in an existing
+// pcapng file to find the timestamp of the last one written, so a resumed
+// capture can keep its monotonic timestamp guarantee across the boundary
+// between one process run's packets and the next's. ok is only true if the
+// file parsed cleanly through to a real EOF - any other error means the
+// file may be truncated or corrupted, and the caller falls back to
+// starting a fresh section rather than risking an invalid append.
+func lastPcapngPacketTimestamp(fileName string) (ts time.Time, ok bool) {
+	fp, err := os.Open(fileName)
+	if err != nil {
+		return ts, false
+	}
+	defer fp.Close()
+
+	reader, err := pcapgo.NewNgReader(fp, pcapgo.DefaultNgReaderOptions)
+	if err != nil {
+		return ts, false
+	}
+
+	found := false
+	for {
+		_, ci, err := reader.ZeroCopyReadPacketData()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return ts, false
+		}
+		ts = ci.Timestamp
+		found = true
+	}
+	return ts, found
+}
+
 // getHandshakeWriter returns the persistent pcapng writer for fileName,
 // opening and registering it the first time it's requested.
 func (w *WiFi) getHandshakeWriter(fileName string, linkType layers.LinkType) (*ngHandshakeWriter, error) {
@@ -371,26 +405,48 @@ func (w *WiFi) getHandshakeWriter(fileName string, linkType layers.LinkType) (*n
 		}
 	}
 
+	// a prior process run may have already written a section to this file
+	// (pwnagotchi restarting between handshakes is routine) - if so, seed
+	// lastTS from its last packet and append into that section instead of
+	// starting a brand new one, otherwise "used capture interfaces" grows
+	// by one on every restart, recreating the same interface-count blowup
+	// the persistent-writer fix solved for per-packet reopens, just
+	// triggered by process restarts instead.
+	var lastTS time.Time
+	appendExisting := false
+	if stat, err := os.Stat(fileName); err == nil && stat.Size() > 0 {
+		if last, ok := lastPcapngPacketTimestamp(fileName); ok {
+			lastTS = last
+			appendExisting = true
+		}
+	}
+
 	fp, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		return nil, err
 	}
 
-	intf := pcapgo.DefaultNgInterface
-	intf.LinkType = linkType
-	writer, err := pcapgo.NewNgWriterInterface(fp, intf, pcapgo.NgWriterOptions{
+	opts := pcapgo.NgWriterOptions{
 		SectionInfo: pcapgo.NgSectionInfo{
 			Hardware:    runtime.GOARCH,
 			OS:          runtime.GOOS,
 			Application: "Pwnagotchi",
 		},
-	})
-	if err != nil {
-		fp.Close()
-		return nil, err
 	}
 
-	hw := &ngHandshakeWriter{file: fp, writer: writer, seen: make(map[uint32]struct{})}
+	var writer *pcapgo.NgWriter
+	if appendExisting {
+		writer = pcapgo.NewNgWriterAppendInterface(fp, opts)
+	} else {
+		intf := pcapgo.DefaultNgInterface
+		intf.LinkType = linkType
+		if writer, err = pcapgo.NewNgWriterInterface(fp, intf, opts); err != nil {
+			fp.Close()
+			return nil, err
+		}
+	}
+
+	hw := &ngHandshakeWriter{file: fp, writer: writer, seen: make(map[uint32]struct{}), lastTS: lastTS}
 	if w.shakesWriters == nil {
 		w.shakesWriters = make(map[string]*ngHandshakeWriter)
 	}

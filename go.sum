@@ -57,8 +57,8 @@ github.com/hashicorp/go-bexpr v0.1.14 h1:uKDeyuOhWhT1r5CiMTjdVY4Aoxdxs6EtwgTGnlo
 github.com/hashicorp/go-bexpr v0.1.14/go.mod h1:gN7hRKB3s7yT+YvTdnhZVLTENejvhlkZ8UE4YVBS+Q8=
 github.com/inconshreveable/go-vhost v1.0.0 h1:IK4VZTlXL4l9vz2IZoiSFbYaaqUW7dXJAiPriUN5Ur8=
 github.com/inconshreveable/go-vhost v1.0.0/go.mod h1:aA6DnFhALT3zH0y+A39we+zbrdMC2N0X/q21e6FI0LU=
-github.com/jayofelony/gopacket v1.3.2-0.20260807221902-5553aa1737d5 h1:UcxRVmnYDvbsN+bf3iz4jldGixpaTi/MbIaIG9PTOhw=
-github.com/jayofelony/gopacket v1.3.2-0.20260807221902-5553aa1737d5/go.mod h1:3I13qcqSpB2R9fFQg866OOgzylYkZxLTmkvcXhvf6qg=
+github.com/jayofelony/gopacket v1.3.2-0.20260808183616-5d25498d23e4 h1:6Edu4YVzf5V8m6ot//Dihg+yliHZtB7W0KQpESeVSGQ=
+github.com/jayofelony/gopacket v1.3.2-0.20260808183616-5d25498d23e4/go.mod h1:3I13qcqSpB2R9fFQg866OOgzylYkZxLTmkvcXhvf6qg=
 github.com/josharian/native v1.1.0 h1:uuaP0hAbW7Y4l0ZRQ6C9zfb7Mg1mbFKry/xzDAfmtLA=
 github.com/josharian/native v1.1.0/go.mod h1:7X/raswPFr05uY3HiLlYeyQntB6OO7E/d2Cu7qoaN2w=
 github.com/jpillora/go-tld v1.2.1 h1:kDKOkmXLlskqjcvNs7w5XHLep7c8WM7Xd4HQjxllVMk=

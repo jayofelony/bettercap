@@ -65,4 +65,4 @@ require (
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 )
 
-replace github.com/gopacket/gopacket => github.com/jayofelony/gopacket v1.3.2-0.20260807221902-5553aa1737d5
+replace github.com/gopacket/gopacket => github.com/jayofelony/gopacket v1.3.2-0.20260808183616-5d25498d23e4
